@@ -1,0 +1,5 @@
+.env
+*.ndjson
+*.ndjson.gz
+__pycache__/
+*.pyc
