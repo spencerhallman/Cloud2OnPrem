@@ -56,6 +56,8 @@ python es_migrate.py export \
     --index my-index
 ```
 
+Important: when using `--url`, provide the Elasticsearch endpoint (typically a host containing `.es.`), not the Kibana endpoint (typically `.kb.`), or the request may be redirected and fail.
+
 This produces a gzip-compressed file like `my-index_20260507_143000.ndjson.gz`.
 
 You can specify a custom output path:
@@ -71,6 +73,15 @@ To export only a subset of documents, pass a query filter:
 python es_migrate.py export --cloud-id "..." --api-key "..." \
     --index my-index \
     --query '{"query": {"term": {"status": "active"}}}'
+```
+
+During export, the tool prints download milestones every 10,000 documents:
+
+```text
+Downloaded: 0 docs
+Downloaded: 10,000 docs
+Downloaded: 20,000 docs
+...
 ```
 
 ### Step 2 — Transfer the file
@@ -98,6 +109,15 @@ python es_migrate.py import \
     --index my-index \
     --input my-data.ndjson.gz \
     --create-index
+```
+
+During import, the tool prints upload milestones every 10,000 documents:
+
+```text
+Uploaded: 0 docs
+Uploaded: 10,000 docs
+Uploaded: 20,000 docs
+...
 ```
 
 ## CLI Reference
@@ -136,6 +156,25 @@ python es_migrate.py import \
 - **Gzip compression** — output files are compressed automatically when using `.gz` extension
 - **Streaming** — documents are never fully loaded into memory, supporting large indices
 - **Progress bar** — real-time document count and ETA
+- **Milestone status updates** — explicit `Downloaded` / `Uploaded` status lines at 10,000-document increments
 - **Retry logic** — bulk imports retry up to 3 times on transient failures
 - **Query filtering** — export a subset of documents with an Elasticsearch query
 - **Flexible auth** — supports API keys or username/password, via CLI args, env vars, or `.env`
+
+## Troubleshooting
+
+### Export fails with `ApiError(302, 'None')`
+
+If export fails with `ApiError(302, 'None')`, the URL passed to `--url` is usually a Kibana endpoint (host contains `.kb.`), which redirects.
+
+Use the Elasticsearch endpoint instead (host contains `.es.`).
+
+Example:
+
+```bash
+# Incorrect (Kibana endpoint)
+python es_migrate.py export --url "https://my-deployment.kb.us-east-1.aws.found.io" --api-key "..." --index my-index
+
+# Correct (Elasticsearch endpoint)
+python es_migrate.py export --url "https://my-deployment.es.us-east-1.aws.found.io" --api-key "..." --index my-index
+```

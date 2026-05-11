@@ -120,6 +120,8 @@ def export_index(client, index, output_path, batch_size=1000, query=None):
 
     with opener(output_path, "wt", encoding="utf-8") as fh:
         with tqdm(total=total_docs, unit="docs", desc="Exporting") as pbar:
+            next_milestone = 10000
+            pbar.write("Downloaded: 0 docs")
             for doc in helpers.scan(
                 client,
                 index=index,
@@ -132,6 +134,10 @@ def export_index(client, index, output_path, batch_size=1000, query=None):
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 written += 1
                 pbar.update(1)
+
+                if written >= next_milestone:
+                    pbar.write(f"Downloaded: {next_milestone:,} docs")
+                    next_milestone += 10000
 
     elapsed = time.time() - start
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
@@ -213,6 +219,8 @@ def import_index(client, index, input_path, batch_size=500,
     start = time.time()
 
     with tqdm(total=total_docs, unit="docs", desc="Importing") as pbar:
+        next_milestone = 10000
+        pbar.write("Uploaded: 0 docs")
         for ok, result in helpers.streaming_bulk(
             client,
             actions=_doc_generator(input_path, index),
@@ -228,6 +236,11 @@ def import_index(client, index, input_path, batch_size=500,
                 if error_count <= 10:
                     print(f"  Error: {result}")
             pbar.update(1)
+
+            processed = success_count + error_count
+            if processed >= next_milestone:
+                pbar.write(f"Uploaded: {next_milestone:,} docs")
+                next_milestone += 10000
 
     elapsed = time.time() - start
     print(f"\nImport complete: {success_count:,} docs indexed, "
